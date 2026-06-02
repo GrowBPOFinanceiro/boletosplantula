@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💕 Gerador de Boletos da Minha Vida 💕</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Quicksand:wght@400;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --pink-deep:  #e91e8c;
+    --pink-mid:   #f06292;
+    --pink-light: #fce4ec;
+    --pink-pale:  #fff0f5;
+    --pink-soft:  #ffd6e7;
+    --red-heart:  #d32f2f;
+    --border:     rgba(233,30,140,0.2);
+    --text:       #880e4f;
+  }
+
+  body {
+    font-family: 'Quicksand', sans-serif;
+    background: var(--pink-pale);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px 80px;
+    overflow-x: hidden;
+  }
+
+  /* floating hearts background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(233,30,140,.06) 0%, transparent 50%),
+      radial-gradient(circle at 85% 70%, rgba(240,98,146,.08) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* ── Floating hearts animation ── */
+  .hearts-bg {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+  }
+  .heart-float {
+    position: absolute;
+    font-size: 22px;
+    animation: floatUp linear infinite;
+    opacity: 0;
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(100vh) rotate(-15deg); opacity: 0; }
+    10%  { opacity: .35; }
+    90%  { opacity: .2; }
+    100% { transform: translateY(-80px) rotate(15deg); opacity: 0; }
+  }
+
+  /* ── Header ── */
+  header {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 860px;
+    margin-bottom: 10px;
+    text-align: center;
+    padding-bottom: 28px;
+  }
+  .heart-crown { font-size: 48px; display: block; margin-bottom: 10px; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px; font-weight: 900; line-height: 1.2;
+    color: var(--pink-deep);
+    text-shadow: 0 2px 12px rgba(233,30,140,.2);
+  }
+  header h1 em { font-style: italic; color: var(--red-heart); }
+
+  .love-note {
+    margin-top: 18px;
+    background: linear-gradient(135deg, #fff0f5, #fce4ec);
+    border: 2px solid var(--pink-mid);
+    border-radius: 20px;
+    padding: 18px 28px;
+    display: inline-block;
+    max-width: 600px;
+    box-shadow: 0 4px 24px rgba(233,30,140,.12);
+    position: relative;
+  }
+  .love-note::before {
+    content: '💌';
+    position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+    font-size: 28px;
+  }
+  .love-note p {
+    font-size: 15px; font-weight: 600; color: var(--text);
+    line-height: 1.7; font-style: italic;
+  }
+  .love-note .assinatura {
+    display: block; margin-top: 10px;
+    font-family: 'Playfair Display', serif;
+    font-size: 15px; font-weight: 700; color: var(--pink-deep);
+    font-style: normal;
+  }
+  .divider {
+    width: 100%; max-width: 860px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--pink-mid), transparent);
+    margin: 28px 0;
+    position: relative; z-index: 1;
+  }
+
+  /* ── Card ── */
+  .card {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 860px;
+    background: #fff;
+    border: 2px solid var(--border);
+    border-radius: 20px;
+    padding: 36px 40px;
+    margin-bottom: 24px;
+    box-shadow: 0 6px 32px rgba(233,30,140,.08);
+  }
+  .card::before {
+    content: '♥';
+    position: absolute; top: -12px; right: 24px;
+    background: #fff; padding: 0 6px;
+    color: var(--pink-deep); font-size: 20px;
+  }
+  .card-title {
+    font-size: 11px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--pink-mid);
+    margin-bottom: 20px;
+  }
+
+  /* ── Drop zone ── */
+  #drop-zone {
+    border: 2.5px dashed var(--border);
+    border-radius: 16px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative;
+    background: var(--pink-pale);
+  }
+  #drop-zone:hover, #drop-zone.drag-over {
+    border-color: var(--pink-deep);
+    background: var(--pink-light);
+  }
+  #drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+  .drop-icon { font-size: 44px; margin-bottom: 12px; }
+  .drop-text { font-size: 17px; font-weight: 700; color: var(--pink-deep); }
+  .drop-sub  { font-size: 12px; color: var(--pink-mid); margin-top: 6px; }
+
+  /* ── Status pills ── */
+  #status-area { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 100px;
+    font-size: 12px; font-weight: 700;
+  }
+  .pill.info    { background: var(--pink-light); color: var(--pink-deep); }
+  .pill.success { background: #fce4ec; color: var(--red-heart); }
+  .pill.warn    { background: #fff8e1; color: #f57f17; }
+  .pill.error   { background: #ffebee; color: #c62828; }
+  .pill-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  /* ── Preview table ── */
+  #preview-section { display: none; }
+  .table-wrap {
+    overflow-x: auto;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    margin-top: 4px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: linear-gradient(135deg, var(--pink-deep), var(--pink-mid));
+    color: #fff;
+    padding: 12px 14px; text-align: left;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  }
+  thead th:first-child { border-radius: 12px 0 0 0; }
+  thead th:last-child  { border-radius: 0 12px 0 0; }
+  tbody tr:nth-child(even) { background: var(--pink-pale); }
+  tbody tr:hover { background: var(--pink-light); }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  td.mono { font-size: 12px; }
+  td.valor { font-weight: 700; color: var(--red-heart); }
+  tfoot td {
+    background: linear-gradient(135deg, var(--red-heart), #e91e8c);
+    color: #fff; font-weight: 800; padding: 12px 14px; font-size: 13px;
+  }
+  .nf-list { font-size: 11px; opacity: .65; }
+
+  /* ── Warnings ── */
+  #sem-cnpj-section { display: none; margin-top: 16px; }
+  .warn-box {
+    background: #fff8e1; border: 1.5px solid #ffe082;
+    border-radius: 12px; padding: 16px 20px;
+  }
+  .warn-box h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: #f57f17; }
+  .warn-box ul { padding-left: 18px; font-size: 12px; color: #795548; }
+  .warn-box li { margin-bottom: 4px; }
+
+  /* ── Buttons ── */
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+  button {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 14px; font-weight: 700;
+    padding: 13px 28px;
+    border-radius: 100px; border: none; cursor: pointer;
+    transition: transform .15s, box-shadow .15s, opacity .15s;
+  }
+  button:active { transform: scale(.97); }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--pink-deep), var(--pink-mid));
+    color: #fff;
+    box-shadow: 0 4px 18px rgba(233,30,140,.3);
+  }
+  .btn-primary:hover:not(:disabled) {
+    box-shadow: 0 6px 24px rgba(233,30,140,.45);
+    transform: translateY(-1px);
+  }
+  .btn-ghost {
+    background: transparent; color: var(--pink-deep);
+    border: 2px solid var(--pink-mid);
+  }
+  .btn-ghost:hover:not(:disabled) { background: var(--pink-light); }
+
+  /* ── Footer love ── */
+  .footer-hearts {
+    position: relative; z-index: 1;
+    margin-top: 8px; text-align: center;
+    font-size: 22px; letter-spacing: 6px;
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+
+<!-- Floating hearts -->
+<div class="hearts-bg" id="hearts-bg"></div>
+
+<header>
+  <span class="heart-crown">💖</span>
+  <h1>Gerador de Boletos<br><em>da Minha Vida</em></h1>
+
+  <div class="love-note">
+    <p>Para minha mulher emitir os boletos de forma mais rápida,<br>
+    te amo te amo te amo. 💕💕💕</p>
+    <span class="assinatura">— Ass: Guilherme Fonseca ❤️</span>
+  </div>
+</header>
+
+<div class="divider"></div>
+
+<!-- Upload -->
+<div class="card">
+  <div class="card-title">01 · Carregar planilha</div>
+  <div id="drop-zone">
+    <input type="file" id="file-input" accept=".xlsx,.xls">
+    <div class="drop-icon">📂</div>
+    <div class="drop-text">Arraste a planilha aqui ou clique para selecionar</div>
+    <div class="drop-sub">Relação de Vendas e Cobranças · .xlsx</div>
+  </div>
+  <div id="status-area"></div>
+</div>
+
+<!-- Preview + Export -->
+<div class="card" id="preview-section">
+  <div class="card-title">02 · Prévia — Boletos Mensais</div>
+
+  <div id="sem-cnpj-section">
+    <div class="warn-box">
+      <h4>⚠️ Clientes sem CNPJ cadastrado</h4>
+      <ul id="sem-cnpj-list"></ul>
+    </div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:16px;">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cliente</th>
+          <th>CNPJ</th>
+          <th>Valor Total</th>
+          <th>Notas Fiscais</th>
+        </tr>
+      </thead>
+      <tbody id="preview-body"></tbody>
+      <tfoot id="preview-foot"></tfoot>
+    </table>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-primary" id="btn-export" disabled>⬇ Exportar .xlsx</button>
+    <button class="btn-ghost" id="btn-reset">↩ Nova planilha</button>
+  </div>
+</div>
+
+<script>
+// ── CNPJ lookup (extraído do cadastro de clientes) ──────────────────────────
+const CNPJ_MAP = {
+  "AFETTO GASTRONOMIA": "32.050.291/0001-19",
+  "ALEGRO 201 NORTE": "37.765.282/0004-70",
+  "ALEGRO 412 NORTE": "37.765.282/0002-09",
+  "ALEGRO SUDOESTE": "37.765.282/0003-90",
+  "AMELIA RESTAURANTE": "60.661.664/0001-23",
+  "BELINI": "03.953.506/0001-03",
+  "BISTRO MAISON": "14.702.909/0001-04",
+  "CAFE CONTEMPO": "47.839.335/0001-61",
+  "CAFE SABORES": "50.524.392/0001-66",
+  "CANTUCCI AGUAS CLARAS": "13.360.660/0002-06",
+  "CANTUCCI ASA NORTE": "13.360.660/0001-25",
+  "CASA ALMERIA": "39.251.506/0002-90",
+  "CHARD": "23.792.176/0002-00",
+  "CROISSANTERIE": "26.463.976/0001-94",
+  "CURUMIM FORNO & CAFETERIA": "40.432.651/0001-75",
+  "DONA LENHA ASA NORTE": "07.056.370/0001-90",
+  "DONA LENHA ASA SUL": "72.590.656/0001-12",
+  "DONA LENHA LAGO SUL": "13.807.257/0001-00",
+  "DONA LENHA TERRAÇO": "03.502.936/0001-09",
+  "FLOR DO CERRADO GASTRONOMIA": "39.682.749/0001-00",
+  "GP ROCKS - DOC CLASSICO": "09.674.465/0009-50",
+  "INFORNO BURGER": "37.764.526/0001-58",
+  "INGLES CELEBRACOES ASA SUL": "62.608.877/0001-17",
+  "INGLES MARTINS IGUATEMI": "24.923.602/0001-89",
+  "JAMBURITA COZINHA": "35.130.518/0001-24",
+  "KOJI IZAKAYA": "45.281.346/0001-43",
+  "LA PALMA ASA NORTE": "00.672.600/0001-04",
+  "LA PALMA ASA SUL": "10.288.707/0001-07",
+  "LA PANETTERIA": "26.999.441/0001-32",
+  "LOMA": "23.924.180/0002-84",
+  "MAGNÓLIAS CAFÉ": "55.466.934/0001-05",
+  "MARICOTA CAFE": "61.278.642/0001-41",
+  "MAXFOODS MARKET": "24.552.469/0001-00",
+  "NK SUSHI": "44.275.580/0001-03",
+  "OCANTO": "60.899.238/0001-22",
+  "ORIGEN BAR": "42.897.882/0001-80",
+  "PALOMINA VINHOS - BECO BAR": "39.565.124/0001-50",
+  "PISELLI": "40.695.417/0001-30",
+  "SALLVA BAR E RISTORANTI": "25.683.919/0001-58",
+  "SOVAR E ASSAR CAFETERIA": "51.685.779/0001-67",
+  "SUSHI SAN": "36.293.368/0001-32",
+  "SWEET CAKE": "37.978.681/0001-77",
+  "TAYPA DEL PERU": "11.917.885/0001-04",
+  "TERRA NOVA BRASILIA": "28.464.032/0001-67",
+  "TETA EMPORIO": "11.617.257/0001-03",
+  "TICIANA WERNER": "10.335.285/0001-75",
+  "WINDSOR PLAZA ASA NORTE": "10.348.318/0009-79",
+  "WINDSOR PLAZA ASA SUL": "10.348.318/0011-93"
+};
+
+// ── Floating hearts ────────────────────────────────────────────────────────
+(function() {
+  const container = document.getElementById('hearts-bg');
+  const emojis = ['❤️','💕','💖','💗','💓','💝','🩷','♥️'];
+  for (let i = 0; i < 18; i++) {
+    const h = document.createElement('div');
+    h.className = 'heart-float';
+    h.textContent = emojis[i % emojis.length];
+    h.style.left = (Math.random() * 100) + '%';
+    h.style.fontSize = (14 + Math.random() * 18) + 'px';
+    h.style.animationDuration = (8 + Math.random() * 12) + 's';
+    h.style.animationDelay = (Math.random() * 10) + 's';
+    container.appendChild(h);
+  }
+})();
+
+// ── State ──────────────────────────────────────────────────────────────────
+let processedData = [];
+let sheetUsed = '';
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const dropZone    = document.getElementById('drop-zone');
+const fileInput   = document.getElementById('file-input');
+const statusArea  = document.getElementById('status-area');
+const previewSec  = document.getElementById('preview-section');
+const previewBody = document.getElementById('preview-body');
+const previewFoot = document.getElementById('preview-foot');
+const btnExport   = document.getElementById('btn-export');
+const btnReset    = document.getElementById('btn-reset');
+const semCnpjSec  = document.getElementById('sem-cnpj-section');
+const semCnpjList = document.getElementById('sem-cnpj-list');
+
+// ── Drag & drop ────────────────────────────────────────────────────────────
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) processFile(f);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) processFile(fileInput.files[0]); });
+btnReset.addEventListener('click', resetAll);
+btnExport.addEventListener('click', exportXLSX);
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function pill(text, type) {
+  const d = document.createElement('div');
+  d.className = `pill ${type}`;
+  d.innerHTML = `<span class="pill-dot"></span>${text}`;
+  statusArea.appendChild(d);
+}
+
+function addPill(text, type) { pill(text, type); }
+
+function resetAll() {
+  processedData = []; sheetUsed = '';
+  statusArea.innerHTML = '';
+  previewBody.innerHTML = '';
+  previewFoot.innerHTML = '';
+  semCnpjList.innerHTML = '';
+  semCnpjSec.style.display = 'none';
+  previewSec.style.display = 'none';
+  btnExport.disabled = true;
+  fileInput.value = '';
+}
+
+// ── Find most recent sheet ─────────────────────────────────────────────────
+// Sheet names like '0526' = month 05, year 26
+function parseSheeName(name) {
+  const m = name.match(/^(\d{2})(\d{2})$/);
+  if (!m) return null;
+  return { month: parseInt(m[1]), year: parseInt(m[2]), raw: name };
+}
+
+function mostRecentSheet(names) {
+  const parsed = names.map(parseSheeName).filter(Boolean);
+  if (!parsed.length) return names[0]; // fallback
+  parsed.sort((a, b) => b.year !== a.year ? b.year - a.year : b.month - a.month);
+  return parsed[0].raw;
+}
+
+// ── Format currency ────────────────────────────────────────────────────────
+function fmtBRL(v) {
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ── Process file ───────────────────────────────────────────────────────────
+function processFile(file) {
+  resetAll();
+  addPill(`📄 ${file.name}`, 'info');
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const sheets = wb.SheetNames;
+      addPill(`${sheets.length} aba(s) encontrada(s)`, 'info');
+
+      sheetUsed = mostRecentSheet(sheets);
+      addPill(`Aba selecionada: ${sheetUsed}`, 'success');
+
+      const ws = wb.Sheets[sheetUsed];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+      // Find header row
+      let headerIdx = raw.findIndex(r => r.some(c => String(c).toLowerCase().includes('cliente')));
+      if (headerIdx < 0) headerIdx = 0;
+
+      const headers = raw[headerIdx].map(h => String(h || '').toLowerCase().trim());
+      const colCliente  = headers.findIndex(h => h === 'cliente');
+      const colNF       = headers.findIndex(h => h.includes('nota fiscal') || h.includes('nota_fiscal'));
+      const colValor    = headers.findIndex(h => h === 'valor');
+      const colForma    = headers.findIndex(h => h.includes('forma'));
+
+      if ([colCliente, colNF, colValor, colForma].includes(-1)) {
+        addPill('Colunas esperadas não encontradas', 'error');
+        return;
+      }
+
+      // Filter mensal rows only
+      const rows = raw.slice(headerIdx + 1).filter(r =>
+        r[colForma] && String(r[colForma]).trim().toLowerCase() === 'mensal' && r[colCliente]
+      );
+
+      addPill(`${rows.length} linhas mensais`, 'success');
+
+      // Group by cliente
+      const groups = {};
+      rows.forEach(r => {
+        const cliente = String(r[colCliente]).trim().toUpperCase();
+        const nfRaw   = String(r[colNF] || '').trim();
+        // Extract number from "NF-e: 6427" or just plain number
+        const nfNum = nfRaw.match(/\d+/) ? nfRaw.match(/\d+/)[0] : nfRaw;
+        const valor = parseFloat(String(r[colValor]).replace(',', '.')) || 0;
+
+        if (!groups[cliente]) groups[cliente] = { valor: 0, nfs: [] };
+        groups[cliente].valor += valor;
+        if (nfNum) groups[cliente].nfs.push(nfNum);
+      });
+
+      // Build result array, sorted by name
+      const semCNPJ = [];
+      processedData = Object.keys(groups).sort().map(cliente => {
+        const cnpj = CNPJ_MAP[cliente] || CNPJ_MAP[
+          // try accent-insensitive fallback
+          Object.keys(CNPJ_MAP).find(k => normalize(k) === normalize(cliente))
+        ] || '';
+        if (!cnpj) semCNPJ.push(cliente);
+        return {
+          cliente,
+          cnpj,
+          valor: groups[cliente].valor,
+          nfs: groups[cliente].nfs.join(', ')
+        };
+      });
+
+      // Render warnings
+      if (semCNPJ.length) {
+        semCnpjSec.style.display = 'block';
+        semCnpjList.innerHTML = semCNPJ.map(c => `<li>${c}</li>`).join('');
+        addPill(`${semCNPJ.length} sem CNPJ`, 'warn');
+      }
+
+      renderTable();
+      previewSec.style.display = 'block';
+      btnExport.disabled = false;
+
+    } catch (err) {
+      addPill(`Erro: ${err.message}`, 'error');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function normalize(s) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+}
+
+// ── Render preview table ───────────────────────────────────────────────────
+function renderTable() {
+  previewBody.innerHTML = '';
+  let total = 0;
+  processedData.forEach((row, i) => {
+    total += row.valor;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${i + 1}</td>
+      <td><strong>${row.cliente}</strong></td>
+      <td class="mono">${row.cnpj || '<span style="opacity:.35">—</span>'}</td>
+      <td class="valor">${fmtBRL(row.valor)}</td>
+      <td class="nf-list">${row.nfs}</td>
+    `;
+    previewBody.appendChild(tr);
+  });
+
+  previewFoot.innerHTML = `
+    <tr>
+      <td colspan="3">TOTAL — ${processedData.length} clientes</td>
+      <td>${fmtBRL(total)}</td>
+      <td></td>
+    </tr>
+  `;
+}
+
+// ── Export XLSX ────────────────────────────────────────────────────────────
+function exportXLSX() {
+  const wb = XLSX.utils.book_new();
+
+  // Build data array
+  const wsData = [['Cliente', 'CNPJ', 'Valor Total', 'Notas Fiscais']];
+  let total = 0;
+  processedData.forEach(r => {
+    wsData.push([r.cliente, r.cnpj, r.valor, r.nfs]);
+    total += r.valor;
+  });
+  wsData.push(['TOTAL', '', total, '']);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 36 }, // Cliente
+    { wch: 22 }, // CNPJ
+    { wch: 18 }, // Valor
+    { wch: 80 }, // NFs
+  ];
+
+  // Style helper
+  const navy   = '212752';
+  const green  = '1D9E75';
+  const cream  = 'F5F1E8';
+  const white  = 'FFFFFF';
+  const yellow = 'F5C56A';
+
+  function cellStyle(fill, fontColor, bold, hAlign) {
+    return {
+      fill: { fgColor: { rgb: fill } },
+      font: { name: 'Arial', bold: !!bold, color: { rgb: fontColor } },
+      alignment: { horizontal: hAlign || 'left', vertical: 'center', wrapText: true },
+      border: {
+        top:    { style: 'thin', color: { rgb: 'CCCCCC' } },
+        bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+        left:   { style: 'thin', color: { rgb: 'CCCCCC' } },
+        right:  { style: 'thin', color: { rgb: 'CCCCCC' } },
+      }
+    };
+  }
+
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+
+      const isHeader = R === 0;
+      const isTotal  = R === range.e.r;
+      const isValor  = C === 2;
+      const isEven   = R % 2 === 1;
+
+      let fill, fontColor, bold;
+      if (isHeader)       { fill = navy;  fontColor = white; bold = true; }
+      else if (isTotal)   { fill = green; fontColor = white; bold = true; }
+      else if (isEven)    { fill = 'F5F1E8'; fontColor = navy; bold = false; }
+      else                { fill = white; fontColor = navy; bold = false; }
+
+      ws[addr].s = cellStyle(fill, fontColor, bold, isValor ? 'right' : 'left');
+
+      // Number format for Valor column
+      if (isValor && !isHeader && typeof ws[addr].v === 'number') {
+        ws[addr].t = 'n';
+        ws[addr].z = 'R$ #,##0.00';
+      }
+    }
+  }
+
+  // Filename with sheet month/year
+  const monthMap = { '01':'jan','02':'fev','03':'mar','04':'abr','05':'mai','06':'jun',
+                     '07':'jul','08':'ago','09':'set','10':'out','11':'nov','12':'dez' };
+  const mm = sheetUsed.slice(0, 2);
+  const yy = sheetUsed.slice(2, 4);
+  const label = `${monthMap[mm] || mm}${yy}`;
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Boletos a Emitir');
+  XLSX.writeFile(wb, `boletos_mensais_${label}.xlsx`);
+}
+</script>
+
+<div class="footer-hearts">❤️ 💕 ❤️ 💕 ❤️</div>
+
+</body>
+</html>
